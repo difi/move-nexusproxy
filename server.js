@@ -26,7 +26,7 @@ function getLatestAsync(environment){
 
 function getEnvrionment(env){
     switch (env) {
-        case "prod": 
+        case "releases": 
             return "releases";
         case "staging":
             return "staging";
@@ -77,10 +77,15 @@ router.get('/latest', function (req, res) {
     Promise.all([getLatestAsync(environment)])
         .then((latest) => {
             log.info("environment: "+ environment + "version: "+latest );
-            latestVersion.baseVersion = latest.toString();            
-            var latestV = { baseVersion: latest, version: "", sha1: "", repositoryId: environment };
+            //var latestV = { baseVersion: latest, version: "", sha1: "", repositoryId: environment };
+            latestVersion.baseVersion = latest.toString();
+            latestVersion.sha1 = "";
+            latestVersion.version = "";
             var json = JSON.stringify({ 
-                latest: latestVersion
+                "baseVersion": latestVersion.baseVersion,
+                "version": latestVersion.version,
+                "sha1": latestVersion.sha1,
+                "environment": latestVersion.environment
             });
             res.send(json)            //res.send(latest);
            
