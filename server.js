@@ -1,17 +1,21 @@
 
 
-var http = require('http');
-var request = require('request-promise');
-var express = require('express');
-var log = require('winston');
+const http = require('http');
+const request = require('request-promise');
+const express = require('express');
+const log = require('winston');
+const router = express();
+const server = http.createServer(router);
+const util = require('util');
 
-var router = express();
-var server = http.createServer(router);
+const baseUri = "https://beta-meldingsutveksling.difi.no";
 
-var baseUri = "https://beta-meldingsutveksling.difi.no";
-
-function getLatestAsync(){
+function getLatestAsync(environment){
     return new Promise((resolve, reject) =>{
+        var service = util.format("service/local/lucene/search?a=integrasjonspunkt&repositoryId=%s", environment)
+        var uri = util.format("%s/%s", baseUri, service)
+        log.info(uri);
+        var options = getOptions(uri);
          request.get(options).then(function(body) {  
             var info = JSON.parse(body);
             var latest = info.data[0].version;
@@ -35,14 +39,18 @@ function getEnvrionment(env){
     }
 }
 
-var options = {
-    uri: 'https://beta-meldingsutveksling.difi.no/service/local/lucene/search?a=integrasjonspunkt&repositoryId=staging',
-    headers: {
-        'User-Agent': 'request',
-        'Content-Type': 'application/json; charset=utf-8',
-        'Accept': 'application/json; charset=utf-8',
-    }
-};
+
+function getOptions(serviceUri){    
+    var options = {        
+        uri: serviceUri,
+        headers: {
+            'User-Agent': 'request',
+            'Content-Type': 'application/json; charset=utf-8',
+            'Accept': 'application/json; charset=utf-8',
+        }
+    };
+    return options;
+}
 
 router.get('/latest', function (req, res) {    
     var repositoryId;
@@ -66,7 +74,7 @@ router.get('/latest', function (req, res) {
 
     latestVersion.repositoryId = repositoryId.toString();   
     
-    Promise.all([getLatestAsync()])
+    Promise.all([getLatestAsync(environment)])
         .then((latest) => {
             log.info("environment: "+ environment + "version: "+latest );
             latestVersion.baseVersion = latest.toString();            
