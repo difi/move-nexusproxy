@@ -1,20 +1,18 @@
 
-
 const http = require('http');
 const request = require('request-promise');
 const express = require('express');
 const log = require('winston');
-const router = express();
-const server = http.createServer(router);
 const util = require('util');
 
+const router = express();
+const server = http.createServer(router);
 const baseUri = "https://beta-meldingsutveksling.difi.no";
 
 function getLatestAsync(environment){
     return new Promise((resolve, reject) =>{
         var service = util.format("service/local/lucene/search?a=integrasjonspunkt&repositoryId=%s", environment)
         var uri = util.format("%s/%s", baseUri, service)
-        log.info(uri);
         var options = getOptions(uri);
          request.get(options).then(function(body) {  
             var info = JSON.parse(body);
@@ -22,6 +20,22 @@ function getLatestAsync(environment){
             resolve(latest);
         });
     });
+}
+
+function getMetaInfo(environment, version){
+    return new Promise((resolve, reject) =>{
+        var uri = getUri( util.format("service/local/artifact/maven/resolve?r=%s&g=no.difi.meldingsutveksling&a=integrasjonspunkt&v=%s", environment,version));
+        var options = getOptions(uri);
+        request.get(options).then(function(body){
+            info = JSON.parse(body);
+            var metaInfo = {version : info.data.version, sha1 : info.data.sha1};
+            resolve(metaInfo);
+        });
+    });
+}
+
+function getUri(service){
+    return util.format("%s/%s", baseUri, service);
 }
 
 function getEnvrionment(env){
@@ -60,8 +74,7 @@ router.get('/latest', function (req, res) {
         environment = req.query.env;
         repositoryId = getEnvrionment(environment);
     }
-    catch(err)
-    {
+    catch(err){
         log.error("feil !!");
     }
     if(repositoryId == "none"){
@@ -74,28 +87,31 @@ router.get('/latest', function (req, res) {
 
     latestVersion.repositoryId = repositoryId.toString();   
     
-    Promise.all([getLatestAsync(environment)])
-        .then((latest) => {
-            log.info("environment: "+ environment + "version: "+latest );
-            //var latestV = { baseVersion: latest, version: "", sha1: "", repositoryId: environment };
-            latestVersion.baseVersion = latest.toString();
-            latestVersion.sha1 = "";
-            latestVersion.version = "";
-            var json = JSON.stringify({ 
-                "baseVersion": latestVersion.baseVersion,
-                "version": latestVersion.version,
-                "sha1": latestVersion.sha1,
-                "environment": latestVersion.environment
-            });
-            res.send(json)            //res.send(latest);
-           
-        })
-        .catch((err) => log.error(err));
+    getLatestAsync(environment)
+    .then(latest => {
+        latestVersion.baseVersion = latest.toString()
+    
+        getMetaInfo(environment,latest.toString())
+            .then(meta => {
+                latestVersion.version = meta.version;
+                latestVersion.sha1 = meta.sha1;
+                var json = JSON.stringify({ 
+                        "baseVersion": latestVersion.baseVersion,
+                        "version": latestVersion.version,
+                        "sha1": latestVersion.sha1,
+                        "environment": latestVersion.environment
+                    });
+                    res.send(json) ;
+            })
+    })
+    .catch(err => console.log)   
 });
+
+
 
 
 server.listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0", function(){
   var addr = server.address();
-  console.log("Chat server listening at", addr.address + ":" + addr.port);
+  console.log("Server listening at", addr.address + ":" + addr.port);
 });
 
