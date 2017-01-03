@@ -95,13 +95,13 @@ router.get('/latest', function (req, res) {
             .then(meta => {
                 latestVersion.version = meta.version;
                 latestVersion.sha1 = meta.sha1;
-                var json = JSON.stringify({ 
-                        "baseVersion": latestVersion.baseVersion,
-                        "version": latestVersion.version,
-                        "sha1": latestVersion.sha1,
-                        "environment": latestVersion.environment
-                    });
-                    res.send(json) ;
+                
+                res.jsonp({ 
+                        baseVersion: latestVersion.baseVersion,
+                        version: latestVersion.version,
+                        sha1: latestVersion.sha1,
+                        environment: latestVersion.environment
+                    });   
             })
     })
     .catch(err => console.log)   
