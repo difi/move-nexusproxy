@@ -8,6 +8,8 @@ const util = require('util');
 const router = express();
 const server = http.createServer(router);
 const baseUri = "https://beta-meldingsutveksling.difi.no";
+const metainfoPath = "service/local/artifact/maven/resolve?r=%s&g=no.difi.meldingsutveksling&a=integrasjonspunkt&v=%s";
+const downloadPath = "service/local/artifact/maven/redirect?r=%s&g=no.difi.meldingsutveksling&a=integrasjonspunkt&v=%s";
 
 function getLatestAsync(environment){
     return new Promise((resolve, reject) =>{
@@ -24,18 +26,23 @@ function getLatestAsync(environment){
 
 function getMetaInfo(environment, version){
     return new Promise((resolve, reject) =>{
-        var uri = getUri( util.format("service/local/artifact/maven/resolve?r=%s&g=no.difi.meldingsutveksling&a=integrasjonspunkt&v=%s", environment,version));
-        var options = getOptions(uri);
+        var metainfoUri = getMetainfoUri( util.format(metainfoPath, environment,version));
+        var downloadServiceuri = getDownloadUri(util.format(downloadPath, environment,version));
+        var options = getOptions(metainfoUri);
         request.get(options).then(function(body){
             info = JSON.parse(body);
-            var metaInfo = {version : info.data.version, sha1 : info.data.sha1};
+            var metaInfo = {version : info.data.version, sha1 : info.data.sha1, downloadUri: downloadServiceuri};
             resolve(metaInfo);
         });
     });
 }
 
-function getUri(service){
-    return util.format("%s/%s", baseUri, service);
+function getMetainfoUri(servicePaht){
+    return util.format("%s/%s", baseUri, servicePaht);
+}
+
+function getDownloadUri(servicePaht){
+    return util.format("%s/%s", baseUri, servicePaht)
 }
 
 function getEnvrionment(env){
@@ -95,12 +102,14 @@ router.get('/latest', function (req, res) {
             .then(meta => {
                 latestVersion.version = meta.version;
                 latestVersion.sha1 = meta.sha1;
+                latestVersion.downloadUri = meta.downloadUri;
                 
                 res.jsonp({ 
                         baseVersion: latestVersion.baseVersion,
                         version: latestVersion.version,
                         sha1: latestVersion.sha1,
-                        environment: latestVersion.environment
+                        environment: latestVersion.environment,
+                        downloadUri: latestVersion.downloadUri
                     });   
             })
     })
